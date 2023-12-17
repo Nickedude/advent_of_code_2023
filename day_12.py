@@ -1,100 +1,71 @@
+from functools import lru_cache
 from typing import List, Tuple, Dict
 from tqdm import tqdm
 
 
-def read() -> List[Tuple[str, List[int]]]:
+def read() -> List[Tuple[str, Tuple[int, ...]]]:
     with open("input.txt") as file:
         lines = [x.strip() for x in file.readlines()]
         springs_and_counts = []
 
         for line in lines:
             springs, counts = line.split(" ")
-            counts = [int(c) for c in counts.split(",")]
+            counts = tuple([int(c) for c in counts.split(",")])
             springs_and_counts.append((springs, counts))
 
         return springs_and_counts
 
 
-def simplify(springs: str) -> str:
-    new = []
+@lru_cache(maxsize=10000)
+def get_valid_arrangements(springs: str, counts: Tuple[int, ...]) -> int:
+    # Check if we're out of springs
+    if not springs:
+        # This case is valid if we're out of groups
+        return 1 if len(counts) == 0 else 0
 
-    # ...#.... -> .#.
-    # #...# -> #.#
+    # Check if we're out of groups
+    if not counts:
+        # This case is valid if we're out of damaged springs
+        return 0 if "#" in springs else 1
 
-    for i, c in enumerate(springs):
-        if springs[i] == ".":
-            if i > 0 and springs[i-1] == ".":
-                continue
-            else:
-                new.append(c)
-        else:
-            new.append(c)
+    # Skip dots
+    if springs[0] == ".":
+        return get_valid_arrangements(springs[1:], counts)
 
-    return "".join(new)
+    # If it's a damaged spring, match it to the next group
+    elif springs[0] == "#":
+        current = counts[0]
 
+        # Check if the group can be fulfilled
 
-def get_actual_counts(springs: str) -> List[int]:
-    current = 0
-    actual_counts = []
+        # The group cannot exceed the number of springs
+        if current > len(springs):
+            return 0
 
-    for c in springs:
-        if c == "." and current > 0:
-            actual_counts.append(current)
-            current = 0
-        if c == "#":
-            current += 1
-
-    if current > 0:
-        actual_counts.append(current)
-
-    return actual_counts
-
-
-def is_valid(springs: str, counts: List[int]) -> bool:
-    return get_actual_counts(springs) == counts
-
-
-def get_valid_arrangements(springs: str, counts: List[int], memory: Dict) -> int:
-    springs = simplify(springs)
-
-    if springs not in memory:
-        # If no unknowns remain, there are no more alternatives
-        if "?" not in springs:
-            if is_valid(springs, counts):
-                return 1
-            else:
+        # Nothing in the group can be empty
+        for i in range(current):
+            if springs[i] == ".":
                 return 0
 
-        arrangements = 0
-        idx = springs.index("?")
+        # A new group can't start directly after this one
+        if current < len(springs) and springs[current] == "#":
+            return 0
 
-        # Check if the arrangement is invalid
-        counts_this_far = get_actual_counts(springs[:idx])
+        # If it can -> move on to beyond this group + one space
+        return get_valid_arrangements(springs[current+1:], counts[1:])
 
-        if len(counts_this_far) > 0:
-            # All groups observed except for the last one must be valid
-            if counts_this_far[:-1] != counts[:len(counts_this_far) - 1]:
-                return 0
-            # The last observed group cannot be larger than it's match
-            # If there are more groups observed than actual groups, match to the last one
-            if counts_this_far[-1] > counts[min(len(counts_this_far) - 1, len(counts) - 1)]:
-                return 0
-
-        for alternative in [".", "#"]:
-            springs_alt = springs[:idx] + alternative + springs[idx+1:]
-            springs_alt = simplify(springs_alt)
-            arrangements += get_valid_arrangements(springs_alt, counts, memory)
-
-        memory[springs] = arrangements
-
-    return memory[springs]
+    # If it's unknown -> investigate both options
+    elif springs[0] == "?":
+        empty_opt = get_valid_arrangements("." + springs[1:], counts)
+        damaged_opt = get_valid_arrangements("#" + springs[1:], counts)
+        return empty_opt + damaged_opt
 
 
-def get_num_valid_arrangements(springs_and_counts: List[Tuple[str, List[int]]]) -> int:
+def get_num_valid_arrangements(springs_and_counts: List[Tuple[str, Tuple[int, ...]]]) -> int:
     count = 0
 
     for springs, counts in tqdm(springs_and_counts):
-        count += get_valid_arrangements(simplify(springs), counts, memory={})
+        count += get_valid_arrangements(springs, counts)
 
     return count
 
