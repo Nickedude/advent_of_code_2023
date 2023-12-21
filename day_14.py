@@ -180,11 +180,11 @@ def compute_load(world: np.ndarray) -> int:
 def print_world(world: np.ndarray):
     for i in range(world.shape[0]):
         for j in range(world.shape[1]):
-            if world[i,j] == EMPTY:
+            if world[i, j] == EMPTY:
                 print(".", end="")
-            elif world[i,j] == ROUND_ROCK:
+            elif world[i, j] == ROUND_ROCK:
                 print("O", end="")
-            elif world[i,j] == STEADY_ROCK:
+            elif world[i, j] == STEADY_ROCK:
                 print("#", end="")
 
         print("")
